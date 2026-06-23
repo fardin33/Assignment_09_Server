@@ -1,31 +1,70 @@
-const express = require('express');
+const express = require("express");
+require("dotenv").config();
+const cors = require("cors");
 const app = express();
+app.use(cors());
 const port = 8000;
 
-
-
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = process.env.MONGODB_URI;
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
-  }
+  },
 });
 
-async function run() {
+async function server() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+
+    const db = client.db("StudyNookDB");
+    const roomCollection = db.collection("Available Rooms");
+
+    // Get Available Rooms Route :
+    app.get("/rooms", async (req, res) => {
+      try {
+        const rooms = await roomCollection.find().toArray();
+        res.send(rooms);
+      } catch (error) {
+        console.error("Error fetching rooms:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+      }
+    });
+
+    // Rooms Details Route :
+    app.get("/rooms/:id", async (req, res) => {
+      const roomId = req.params.id;
+
+      try {
+        const room = await roomCollection.findOne({
+          _id: new ObjectId(roomId),
+        });
+        if (room) {
+          res.send(room);
+        } else {
+          res.status(404).json({ error: "Room not found" });
+        }
+      } catch (error) {
+        console.error("Error fetching room details:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+      }
+    });
+
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!",
+    );
   } finally {
-    // Ensures that the client will close when you finish/error
-    await client.close();
   }
 }
-run().catch(console.dir);
+server().catch(console.dir);
+
+app.get("/", (req, res) => {
+  res.send("Hello World!");
+});
+
+app.listen(port, () => {
+  console.log(`Server is running on http://localhost:${port}`);
+});
